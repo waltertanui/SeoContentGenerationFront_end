@@ -7,9 +7,9 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGoogle } from '@fortawesome/free-brands-svg-icons';
 
-// API URL configuration
-const API_URL = 'https://seocontentgeneration.onrender.com';
-
+// API URL configuration - Updated for production
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://seocontentgeneration.onrender.com';
+console.log('Current API_URL:', API_URL);
 
 const MAX_ANONYMOUS_POSTS = 3;
 
@@ -28,7 +28,6 @@ const ContentGenerator = () => {
     const [showSignupPrompt, setShowSignupPrompt] = useState(false);
 
     useEffect(() => {
-        // Load anonymous post count from localStorage
         if (!user) {
             const storedCount = localStorage.getItem('anonymousPostCount');
             setAnonymousPostCount(storedCount ? parseInt(storedCount) : 0);
@@ -38,18 +37,22 @@ const ContentGenerator = () => {
     useEffect(() => {
         const fetchUserData = async () => {
             if (user) {
-                const userRef = doc(db, 'users', user.uid);
-                const userDoc = await getDoc(userRef);
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    setPostCount(userData.postCount || 0);
-                } else {
-                    await setDoc(userRef, { postCount: 0 });
-                    setPostCount(0);
+                try {
+                    const userRef = doc(db, 'users', user.uid);
+                    const userDoc = await getDoc(userRef);
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        setPostCount(userData.postCount || 0);
+                    } else {
+                        await setDoc(userRef, { postCount: 0 });
+                        setPostCount(0);
+                    }
+                    localStorage.removeItem('anonymousPostCount');
+                    setAnonymousPostCount(0);
+                } catch (error) {
+                    console.error('Error fetching user data:', error);
+                    setError('Failed to load user data');
                 }
-                // Clear anonymous count when user signs in
-                localStorage.removeItem('anonymousPostCount');
-                setAnonymousPostCount(0);
             }
         };
         fetchUserData();
@@ -63,7 +66,6 @@ const ContentGenerator = () => {
         e.preventDefault();
         setError(null);
 
-        // Check anonymous post limit
         if (!user && anonymousPostCount >= MAX_ANONYMOUS_POSTS) {
             setShowSignupPrompt(true);
             setError(`You've reached the limit of ${MAX_ANONYMOUS_POSTS} free generations. Please sign in to continue.`);
@@ -75,17 +77,26 @@ const ContentGenerator = () => {
         const endpoint = user ? 'generate-content' : 'generate-content-anonymous';
         
         try {
+            console.log('Sending request to:', `${API_URL}/${endpoint}`);
+            
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            if (user) {
+                const token = await user.getIdToken();
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const response = await fetch(`${API_URL}/${endpoint}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': user ? `Bearer ${await user.getIdToken()}` : '',
-                },
+                headers,
                 body: JSON.stringify({ prompt, contentType }),
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
@@ -98,7 +109,6 @@ const ContentGenerator = () => {
             setResult(generatedContent);
             setWordCount(generatedContent.split(/\s+/).length);
 
-            // Update post counts
             if (user) {
                 const userRef = doc(db, 'users', user.uid);
                 await setDoc(userRef, { postCount: postCount + 1 }, { merge: true });
@@ -114,7 +124,7 @@ const ContentGenerator = () => {
             }
         } catch (error) {
             console.error('Error generating content:', error);
-            setError(error.message);
+            setError(error.message || 'Failed to generate content. Please try again.');
             setResult('');
             setWordCount(0);
         } finally {
@@ -123,13 +133,15 @@ const ContentGenerator = () => {
     };
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(result.replace(/<br>/g, '\n')).then(() => {
-            setCopySuccess('Content copied to clipboard!');
-            setTimeout(() => setCopySuccess(''), 3000);
-        }, (err) => {
-            console.error('Failed to copy: ', err);
-            setCopySuccess('Failed to copy content');
-        });
+        navigator.clipboard.writeText(result.replace(/<br>/g, '\n'))
+            .then(() => {
+                setCopySuccess('Content copied to clipboard!');
+                setTimeout(() => setCopySuccess(''), 3000);
+            })
+            .catch((err) => {
+                console.error('Failed to copy:', err);
+                setCopySuccess('Failed to copy content');
+            });
     };
 
     const signIn = async () => {
@@ -147,7 +159,6 @@ const ContentGenerator = () => {
         signOut(auth).then(() => {
             setPostCount(0);
             setResult('');
-            // Reset anonymous count when signing out
             setAnonymousPostCount(0);
             localStorage.removeItem('anonymousPostCount');
         }).catch((error) => {
