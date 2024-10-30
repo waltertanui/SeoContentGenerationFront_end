@@ -9,12 +9,12 @@ import { faGoogle } from '@fortawesome/free-brands-svg-icons';
 import { useNavigate } from 'react-router-dom';
 
 // API URL configuration - Updated for production
-//const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://seocontentgeneration.onrender.com';
-//console.log('Current API_URL:', API_URL);
-
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://seocontentgeneration.onrender.com';
 console.log('Current API_URL:', API_URL);
+
+
+//const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+//console.log('Current API_URL:', API_URL);
 
 const MAX_ANONYMOUS_POSTS = 3;
 
