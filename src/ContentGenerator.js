@@ -6,9 +6,14 @@ import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGoogle } from '@fortawesome/free-brands-svg-icons';
+import { useNavigate } from 'react-router-dom';
 
 // API URL configuration - Updated for production
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://seocontentgeneration.onrender.com';
+//const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://seocontentgeneration.onrender.com';
+//console.log('Current API_URL:', API_URL);
+
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 console.log('Current API_URL:', API_URL);
 
 const MAX_ANONYMOUS_POSTS = 3;
@@ -26,6 +31,8 @@ const ContentGenerator = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState(null);
     const [showSignupPrompt, setShowSignupPrompt] = useState(false);
+    const navigate = useNavigate();
+
 
     useEffect(() => {
         if (!user) {
@@ -173,6 +180,10 @@ const ContentGenerator = () => {
         </div>;
     }
 
+    const handlePaymentRedirect = () => {
+        navigate('/payment');
+    };
+
     return (
         <div className="flex h-screen bg-purple-400 w-full">
             {/* Sidebar */}
@@ -199,14 +210,33 @@ const ContentGenerator = () => {
                         ) : (
                             <div className="mb-4">
                                 <p>Try it out! {getRemainingPosts()} free {getRemainingPosts() === 1 ? 'generation' : 'generations'} remaining.</p>
-                                <button 
-                                    onClick={signIn} 
-                                    className="mt-2 bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded flex items-center justify-center shadow-sm hover:bg-gray-100 transition duration-300"
-                                    style={{width: "fit-content"}}
-                                >
-                                    <FontAwesomeIcon icon={faGoogle} className="mr-2" />
-                                    <span className="text-sm font-medium">Sign in with Google</span>
-                                </button>
+                                {anonymousPostCount >= MAX_ANONYMOUS_POSTS ? (
+                                    // Replace the existing sign-in button with this conditional rendering
+                                    <div className="space-y-2">
+                                        <button 
+                                            onClick={handlePaymentRedirect}
+                                            className="mt-2 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition duration-300 w-full"
+                                        >
+                                            Subscribe for Unlimited Access
+                                        </button>
+                                        <button 
+                                            onClick={signIn} 
+                                            className="mt-2 bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded flex items-center justify-center shadow-sm hover:bg-gray-100 transition duration-300 w-full"
+                                        >
+                                            <FontAwesomeIcon icon={faGoogle} className="mr-2" />
+                                            <span className="text-sm font-medium">Sign in with Google</span>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button 
+                                        onClick={signIn} 
+                                        className="mt-2 bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded flex items-center justify-center shadow-sm hover:bg-gray-100 transition duration-300"
+                                        style={{width: "fit-content"}}
+                                    >
+                                        <FontAwesomeIcon icon={faGoogle} className="mr-2" />
+                                        <span className="text-sm font-medium">Sign in with Google</span>
+                                    </button>
+                                )}
                             </div>
                         )}
                         <form onSubmit={generateContent} className="space-y-4">
