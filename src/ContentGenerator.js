@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaCopy, FaBars } from 'react-icons/fa';
+import { FaCopy } from 'react-icons/fa';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
@@ -8,14 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGoogle } from '@fortawesome/free-brands-svg-icons';
 import { useNavigate } from 'react-router-dom';
 
-// API URL configuration - Updated for production
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://seocontentgeneration.onrender.com';
-console.log('Current API_URL:', API_URL);
-
-
-//const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-//console.log('Current API_URL:', API_URL);
-
 const MAX_ANONYMOUS_POSTS = 3;
 
 const ContentGenerator = () => {
@@ -25,14 +18,13 @@ const ContentGenerator = () => {
     const [result, setResult] = useState('');
     const [copySuccess, setCopySuccess] = useState('');
     const [wordCount, setWordCount] = useState(0);
-    const [sidebarOpen, setSidebarOpen] = useState(true);
     const [postCount, setPostCount] = useState(0);
     const [anonymousPostCount, setAnonymousPostCount] = useState(0);
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState(null);
     const [showSignupPrompt, setShowSignupPrompt] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
     const navigate = useNavigate();
-
 
     useEffect(() => {
         if (!user) {
@@ -64,6 +56,16 @@ const ContentGenerator = () => {
         };
         fetchUserData();
     }, [user]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (!event.target.closest('.profile-dropdown')) {
+                setShowDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const getRemainingPosts = () => {
         return MAX_ANONYMOUS_POSTS - anonymousPostCount;
@@ -174,144 +176,216 @@ const ContentGenerator = () => {
         });
     };
 
-    if (loading) {
-        return <div className="flex items-center justify-center h-screen">
-            <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>;
-    }
-
-    const handlePaymentRedirect = () => {
-        navigate('/payment');
+    const getInitial = (name) => {
+        return name ? name.charAt(0).toUpperCase() : '?';
     };
 
+    const getRandomColor = () => {
+        const colors = [
+            'bg-blue-500',
+            'bg-green-500',
+            'bg-purple-500',
+            'bg-pink-500',
+            'bg-indigo-500',
+            'bg-teal-500'
+        ];
+        // Use user's name as a seed for consistent color
+        const index = user ? user.displayName.length % colors.length : 0;
+        return colors[index];
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex h-screen bg-purple-400 w-full">
-            {/* Sidebar */}
-            <div className={`bg-indigo-700 text-white transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-84' : 'w-16'}`}>
-                <div className="p-4">
-                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-white hover:text-indigo-200">
-                        <FaBars size={24} />
-                    </button>
-                </div>
-                {sidebarOpen && (
-                    <div className="p-4">
-                        <h1 className="text-2xl font-bold mb-4">Content Generator</h1>
+        <div className="min-h-screen w-full bg-gray-50">
+           <header className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6 shadow-lg">
+    <div className="container mx-auto flex justify-between items-center">
+        {/* Left side - Logo */}
+        <div>
+            <img
+                src="/Logo.png"
+                alt="Logo"
+                className="h-10 rounded-sm"
+            />
+        </div>
+
+        {/* Center - Title */}
+        <h1 className="text-2xl font-bold tracking-wide">Content Generator</h1>
+
+        {/* Right side - Profile */}
+        {user && (
+            <div className="relative">
+                <button
+                    onClick={() => setShowDropdown(!showDropdown)}
+                    className={`${getRandomColor()} w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold focus:outline-none shadow-md transition-transform transform hover:scale-105`}
+                >
+                    {getInitial(user.displayName)}
+                </button>
+                
+                {/* Dropdown Menu */}
+                {showDropdown && (
+                    <div className="absolute right-0 mt-3 w-52 bg-white rounded-lg shadow-lg py-2 z-10">
+                        <div className="px-4 py-3 text-sm text-gray-700 border-b">
+                            <div className="font-medium">{user.displayName}</div>
+                            <div className="text-gray-500 text-xs mt-1">Posts: {postCount}</div>
+                        </div>
+                        <button
+                            onClick={signOutUser}
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                            Sign out
+                        </button>
+                    </div>
+                )}
+            </div>
+        )}
+    </div>
+</header>
+
+
+
+
+            {/* Rest of the component remains the same... */}
+            <main className="container mx-auto px-4 py-6 max-w-lg lg:max-w-4xl">
+                <div className="space-y-6 lg:flex lg:space-x-6">
+                    {/* User Section */}
+                    <div className="bg-white rounded-lg shadow p-4 lg:w-1/3">
                         {error && (
-                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
-                                <span className="block sm:inline">{error}</span>
+                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-sm">
+                                {error}
                             </div>
                         )}
+
                         {user ? (
-                            <div className="mb-4">
-                                <p>Welcome, {user.displayName}!</p>
-                                <p>Posts generated: {postCount}</p>
-                                <button onClick={signOutUser} className="mt-2 bg-red-500 text-white px-4 py-2 rounded">Sign Out</button>
+                            <div className="flex flex-col">
+                                <div>
+                                    <p className="text-sm text-gray-600">Try our content generator!</p>
+                                </div>
                             </div>
                         ) : (
-                            <div className="mb-4">
-                                <p>Try it out! {getRemainingPosts()} free {getRemainingPosts() === 1 ? 'generation' : 'generations'} remaining.</p>
+                            <div>
+                                <p className="text-sm mb-3">
+                                    Try it out! {getRemainingPosts()} free {getRemainingPosts() === 1 ? 'generation' : 'generations'} remaining.
+                                </p>
                                 {anonymousPostCount >= MAX_ANONYMOUS_POSTS ? (
-                                    // Replace the existing sign-in button with this conditional rendering
                                     <div className="space-y-2">
                                         <button 
-                                            onClick={handlePaymentRedirect}
-                                            className="mt-2 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition duration-300 w-full"
+                                            className="w-full bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700"
                                         >
                                             Subscribe for Unlimited Access
                                         </button>
                                         <button 
-                                            onClick={signIn} 
-                                            className="mt-2 bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded flex items-center justify-center shadow-sm hover:bg-gray-100 transition duration-300 w-full"
+                                            onClick={signIn}
+                                            className="w-full bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded flex items-center justify-center text-sm hover:bg-gray-50"
                                         >
                                             <FontAwesomeIcon icon={faGoogle} className="mr-2" />
-                                            <span className="text-sm font-medium">Sign in with Google</span>
+                                            Sign in with Google
                                         </button>
                                     </div>
                                 ) : (
                                     <button 
-                                        onClick={signIn} 
-                                        className="mt-2 bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded flex items-center justify-center shadow-sm hover:bg-gray-100 transition duration-300"
-                                        style={{width: "fit-content"}}
+                                        onClick={signIn}
+                                        className="w-full bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded flex items-center justify-center text-sm hover:bg-gray-50"
                                     >
                                         <FontAwesomeIcon icon={faGoogle} className="mr-2" />
-                                        <span className="text-sm font-medium">Sign in with Google</span>
+                                        Sign in with Google
                                     </button>
                                 )}
                             </div>
                         )}
+                    </div>
+
+                    {/* Content Generation Form */}
+                    <div className="bg-white rounded-lg shadow p-4 lg:flex-1">
                         <form onSubmit={generateContent} className="space-y-4">
                             <div>
-                                <label htmlFor="contentType" className="block text-sm font-medium mb-1">Content Type:</label>
+                                <label htmlFor="contentType" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Content Type
+                                </label>
                                 <input
                                     type="text"
+                                    id="contentType"
                                     value={contentType}
                                     onChange={(e) => setContentType(e.target.value)}
-                                    id="contentType"
-                                    className="w-full px-3 py-2 text-black rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    placeholder="E.g., blog post, article, product description..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="E.g., blog post, article..."
                                     required
                                 />
                             </div>
                             <div>
-                                <label htmlFor="prompt" className="block text-sm font-medium mb-1">Prompt:</label>
+                                <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Prompt
+                                </label>
                                 <textarea
+                                    id="prompt"
                                     value={prompt}
                                     onChange={(e) => setPrompt(e.target.value)}
-                                    id="prompt"
-                                    className="w-full px-3 py-2 text-black rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none overflow-hidden"
-                                    placeholder="Describe the content you want to generate..."
-                                    rows={3}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder="Describe the content..."
+                                    rows={4}
                                     required
                                 />
                             </div>
                             <button
                                 type="submit"
-                                className={`w-full py-2 px-4 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                                    (!user && anonymousPostCount >= MAX_ANONYMOUS_POSTS) ? 'bg-gray-400 cursor-not-allowed' :
-                                    !isGenerating ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-400 cursor-not-allowed'
-                                }`}
                                 disabled={isGenerating || (!user && anonymousPostCount >= MAX_ANONYMOUS_POSTS)}
+                                className={`w-full py-2 px-4 rounded-md text-sm font-medium text-white
+                                    ${(!user && anonymousPostCount >= MAX_ANONYMOUS_POSTS) 
+                                        ? 'bg-gray-400' 
+                                        : !isGenerating 
+                                            ? 'bg-indigo-600 hover:bg-indigo-700' 
+                                            : 'bg-gray-400'
+                                    }`}
                             >
                                 {isGenerating ? 'Generating...' : 
-                                 (!user && anonymousPostCount >= MAX_ANONYMOUS_POSTS) ? 'Sign in to Generate More' :
+                                 (!user && anonymousPostCount >= MAX_ANONYMOUS_POSTS) ? 'Sign in to Generate' :
                                  'Generate Content'}
                             </button>
                         </form>
                     </div>
-                )}
-            </div>
+                </div>
 
-            {/* Main Content */}
-            <div className="flex-1 overflow-auto bg-white">
-                <div className="p-8">
-                    <h2 className="text-2xl font-bold mb-4">Generated Content</h2>
+                {/* Generated Content Section */}
+                <div className="bg-white rounded-lg shadow p-4 mt-6">
+                    <h2 className="text-lg font-medium mb-4">Generated Content</h2>
                     {showSignupPrompt && !user && (
-                        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mb-4">
-                            <strong className="font-bold">Limit Reached! </strong>
-                            <span className="block sm:inline">Sign in to continue generating content without limits.</span>
+                        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 p-3 rounded mb-4 text-sm">
+                            <strong>Limit Reached! </strong>
+                            <span>Sign in to continue generating content.</span>
                         </div>
                     )}
-                    <div className="bg-gray-100 p-6 rounded-lg shadow-md min-h-[600px]">
-                        <div id="content" className="whitespace-pre-line">
+                    <div className="bg-gray-50 rounded-lg p-4 min-h-[200px]">
+                        <div className="whitespace-pre-line text-sm">
                             {result || 'Generated content will appear here...'}
                         </div>
                         {result && (
-                            <div className="mt-4 flex items-center">
-                                <button onClick={copyToClipboard} className="flex items-center text-indigo-600 hover:text-indigo-800">
+                            <div className="mt-4 flex items-center space-x-2">
+                                <button 
+                                    onClick={copyToClipboard}
+                                    className="flex items-center text-indigo-600 text-sm hover:text-indigo-800"
+                                >
                                     <FaCopy className="mr-2" />
                                     Copy to Clipboard
                                 </button>
-                                {copySuccess && <p className="text-sm text-green-500">{copySuccess}</p>}
+                                {copySuccess && (
+                                    <p className="text-xs text-green-500">{copySuccess}</p>
+                                )}
                             </div>
                         )}
                     </div>
                     {wordCount > 0 && (
-                        <p className="mt-4 text-sm text-gray-500">
+                        <p className="mt-4 text-xs text-gray-500">
                             Word Count: {wordCount}
                         </p>
                     )}
                 </div>
-            </div>
+            </main>
         </div>
     );
 };
